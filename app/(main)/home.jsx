@@ -29,11 +29,63 @@ const Home = () => {
   const [hasMore, sethasMore] = useState(true);
 
   const handlePostEvent = async (payload) => {
+    // console.log("got new post", payload.new);
+
     if (payload.eventType == "INSERT" && payload?.new?.id) {
       let newPost = { ...payload.new };
       let res = await getUserData(newPost.userId);
+      newPost.postLikes = [];
+      newPost.comments = [{ count: 0 }];
       newPost.user = res.success ? res.data : {};
       setPosts((prevPosts) => [newPost, ...prevPosts]);
+    }
+
+    if (payload.eventType === "DELETE" && payload.old.id) {
+      setPosts((prevPosts) => {
+        let updatedPosts = prevPosts.filter(
+          (post) => post.id !== payload.old.id
+        );
+        return updatedPosts;
+      });
+    }
+
+    if (payload.eventType === "UPDATE" && payload?.new?.id) {
+      setPosts((prevPosts) => {
+        let updatedPosts = prevPosts.map((post) => {
+          if (post.id === payload.new.id) {
+            post.body = payload.new.body;
+            post.file = payload.new.file;
+          }
+          return post;
+        });
+        return updatedPosts;
+      });
+    }
+  };
+  console.log("postcomment", posts[0]?.comments);
+  const handleNewCommentEvent = async (payload) => {
+    if (payload.new) {
+      let newComment = { ...payload.new };
+      let res = await getUserData(newComment.userId);
+      newComment.user = res.success ? res.data : {};
+      posts.map((item) => {
+        if (item.id == newComment.postId) {
+          console.log("got new comment", item.comments);
+        }
+      });
+      setPosts((prevPost) => {
+        let cloned = [...prevPost];
+        cloned = cloned.map((item) => {
+          if (item.id == newComment.postId) {
+            return {
+              ...item,
+              comments: [{ count: item.comments[0].count + 1 }],
+            };
+          }
+          return item;
+        });
+        return cloned;
+      });
     }
   };
 
@@ -46,13 +98,24 @@ const Home = () => {
         handlePostEvent
       )
       .subscribe();
+    let commentChannel = supabase
+      .channel("comments")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments" },
+        handleNewCommentEvent
+      )
+      .subscribe();
+    // getPostDetails();
 
     return () => {
       supabase.removeChannel(postChannel);
+      supabase.removeChannel(commentChannel);
     };
   }, []);
 
   const getPosts = async () => {
+    
     // call the api here
     if (!hasMore) return null;
     limit += 4;
@@ -107,11 +170,11 @@ const Home = () => {
           )}
           ListFooterComponent={
             hasMore ? (
-              <View style={{ marginHorizontal: posts.length !== 0 ? 30 : 200 }}>
+              <View style={{ marginVertical: posts.length !== 0 ? 30 : 100 }}>
                 <Loading />
               </View>
             ) : (
-              <View style={{ marginHorizontal: 30 }}>
+              <View style={{ marginVertical: 30 }}>
                 <Text style={styles.noPosts}>No more posts</Text>
               </View>
             )

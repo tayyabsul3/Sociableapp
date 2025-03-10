@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useRouter } from "expo-router";
 import Header from "../../components/Header";
@@ -16,9 +16,15 @@ import Icon from "../../assets";
 import { theme } from "../../constants/theme";
 import Avatar from "../../components/Avatar";
 import { supabase } from "../../libs/supabase";
-
+import { FlatList } from "react-native";
+import PostCard from "../../components/PostCard";
+import Loading from "../../components/Loading";
+import { fetchPosts } from "../../services/postService";
+let limit = 0;
 const Profile = () => {
   const { user, setAuth } = useAuth();
+  const [posts, setPosts] = useState([]);
+  const [hasMore, sethasMore] = useState(true);
   const router = useRouter();
   const onLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -42,9 +48,54 @@ const Profile = () => {
       },
     ]);
   };
+
+  const getPosts = async () => {
+    // call the api here
+    if (!hasMore) return null;
+    limit += 10;
+    console.log("limite now: " + limit);
+    let res = await fetchPosts(limit, user.id);
+    // console.log(res.data[0].user);
+    if (res.success) {
+      if (res.data.length < 4) sethasMore(false);
+
+      if (posts.length === res.data.length) sethasMore(false);
+      setPosts(res.data);
+    }
+  };
   return (
     <ScreenWrapper bg="white">
-      <UserHeader user={user} router={router} handleLogout={handleLogout} />
+      <FlatList
+        data={posts}
+        ListHeaderComponent={
+          <UserHeader user={user} router={router} handleLogout={handleLogout} />
+        }
+        ListHeaderComponentStyle={{
+          marginBottom: 20,
+        }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listStyle}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <PostCard item={item} currentUser={user} router={router} />
+        )}
+        ListFooterComponent={
+          hasMore ? (
+            <View style={{ marginVertical: posts.length !== 0 ? 30 : 100 }}>
+              <Loading />
+            </View>
+          ) : (
+            <View style={{ marginHorizontal: 30 }}>
+              <Text style={styles.noPosts}>No more posts</Text>
+            </View>
+          )
+        }
+        onEndReachedThreshold={0}
+        onEndReached={() => {
+          getPosts();
+          console.log("reached end");
+        }}
+      />
     </ScreenWrapper>
   );
 };

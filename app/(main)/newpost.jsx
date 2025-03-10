@@ -6,14 +6,14 @@ import {
   Text,
   View,
 } from "react-native";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import Header from "../../components/Header";
 import { hp, wp } from "../../helpers/common";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../contexts/AuthContext";
 import { theme } from "../../constants/theme";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import RichTextEditor from "../../components/RichTextEditor";
 import { TouchableOpacity } from "react-native";
 import Button from "../../components/Button";
@@ -26,11 +26,13 @@ import { createOrUpdatePost } from "../../services/postService";
 
 const Newpost = () => {
   const { user } = useAuth();
+  const post = useLocalSearchParams();
   const bodyRef = useRef("");
   const editorRef = useRef();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState(null);
+  console.log("psoy", post);
   const onPick = async (isImage) => {
     let mediaConfig = {
       // mediaTypes: [],
@@ -75,7 +77,7 @@ const Newpost = () => {
     if (isLocalFile(file)) {
       return file.uri;
     }
-    return getSupabaseFileUrl(file)?.uri;
+    return getSupabaseFileUrl(file);
   };
   const onSubmit = async () => {
     if (!bodyRef.current && !file) {
@@ -87,6 +89,9 @@ const Newpost = () => {
       body: bodyRef.current,
       userId: user?.id,
     };
+    if (post && post.id) {
+      data.id = post.id;
+    }
     // create post
     setLoading(true);
     let res = await createOrUpdatePost(data);
@@ -100,6 +105,17 @@ const Newpost = () => {
       Alert.alert("Post", res.msg);
     }
   };
+  useEffect(() => {
+    if (post && post.id) {
+      bodyRef.current = post.body;
+      setFile(post.file || null);
+      setTimeout(() => {
+        editorRef.current?.setContentHTML(post.body);
+      }, 300);
+    }
+  }, []);
+
+  console.log(getFileUrl(file));
   return (
     <ScreenWrapper bg="white">
       <View style={styles.container}>
@@ -159,7 +175,7 @@ const Newpost = () => {
         </ScrollView>
         <Button
           buttonStyle={{ height: hp(6.2) }}
-          title="Post"
+          title={post && post.id ? "Update" : "Post"}
           loading={loading}
           hasShadow={false}
           onPress={onSubmit}

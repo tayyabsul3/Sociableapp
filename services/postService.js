@@ -30,23 +30,44 @@ export const createOrUpdatePost = async (post) => {
   }
 };
 
-export const fetchPosts = async (limit) => {
-  try {
-    const { data, error } = await supabase
-      .from("posts")
-      .select(`*,user:users (id,name,image),postLikes(*),comments (count)`)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+export const fetchPosts = async (limit, userId) => {
+  if (userId) {
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`*,user:users (id,name,image),postLikes(*),comments (count)`)
+        .order("created_at", { ascending: false })
+        .eq("userId", userId)
+        .limit(limit);
 
-    if (error) {
+      if (error) {
+        console.log("fetchPosts error: ", error);
+        return { success: false, msg: "Could not fetch the posts" };
+      }
+
+      return { success: true, data: data };
+    } catch (error) {
       console.log("fetchPosts error: ", error);
       return { success: false, msg: "Could not fetch the posts" };
     }
+  } else {
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`*,user:users (id,name,image),postLikes(*),comments (count)`)
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
-    return { success: true, data: data };
-  } catch (error) {
-    console.log("fetchPosts error: ", error);
-    return { success: false, msg: "Could not fetch the posts" };
+      if (error) {
+        console.log("fetchPosts error: ", error);
+        return { success: false, msg: "Could not fetch the posts" };
+      }
+
+      return { success: true, data: data };
+    } catch (error) {
+      console.log("fetchPosts error: ", error);
+      return { success: false, msg: "Could not fetch the posts" };
+    }
   }
 };
 export const createPostLike = async (postLike) => {
@@ -94,20 +115,24 @@ export const fetchPostDetails = async (postId) => {
     const { data, error } = await supabase
       .from("posts")
       .select(
-        `*,user:users (id,name,image),postLikes(*),comments(*,user:users (id,name,image)`
+        `*,user:users (id,name,image),postLikes(*),comments(*,user:users (id,name,image))`
       )
       .eq("id", postId)
+      .order("created_at", {
+        ascending: false,
+        foreignTable: "comments",
+      })
       .single();
 
     if (error) {
-      console.log("fetchPost error: ", error);
-      return { success: false, msg: "Could not fetch the post" };
+      console.log("fetchPostDetails error: ", error);
+      return { success: false, msg: "Could not fetch the postDetails" };
     }
 
     return { success: true, data: data };
   } catch (error) {
     console.log("fetchPost error: ", error);
-    return { success: false, msg: "Could not fetch the post" };
+    return { success: false, msg: "Could not fetch the postDetails" };
   }
 };
 
@@ -128,5 +153,38 @@ export const createPostComment = async (comment) => {
   } catch (error) {
     console.log("comment error: ", error);
     return { success: false, msg: "Could not create comment" };
+  }
+};
+export const removeComment = async (commentId) => {
+  try {
+    const { error } = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId);
+
+    if (error) {
+      console.log("commentDelete error: ", error);
+      return { success: false, msg: "Could not remove the comment" };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.log("commentDelete error: ", error);
+    return { success: false, msg: "Could not remove the comment" };
+  }
+};
+export const removePost = async (postId) => {
+  try {
+    const { error } = await supabase.from("posts").delete().eq("id", postId);
+
+    if (error) {
+      console.log("removePost error: ", error);
+      return { success: false, msg: "Could not remove the post" };
+    }
+
+    return { success: true, data: { postId } };
+  } catch (error) {
+    console.log("removePost error: ", error);
+    return { success: false, msg: "Could not remove the post" };
   }
 };

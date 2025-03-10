@@ -25,6 +25,9 @@ const PostCard = ({
   router,
   hasShadow = true,
   showMoreIcon = true,
+  canDelete = false,
+  onEdit = () => {},
+  onDelete = () => {},
 }) => {
   const [likes, setLikes] = useState([]);
   const liked = likes?.filter((like) => like.userId == currentUser?.id)[0]
@@ -101,7 +104,22 @@ const PostCard = ({
     Share.share(content);
     // Alert.alert("Post", "Share post on your preferred platform");
   };
-  // console.log(item?.comments);
+  const handleDelete = async (item) => {
+    Alert.alert("Confirm", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+        onPress: () => {
+          console.log("modal canceled");
+        },
+      },
+      {
+        text: "Delete Post",
+        style: "destructive",
+        onPress: () => onDelete(item),
+      },
+    ]);
+  };
 
   useEffect(() => {
     setLikes(item?.postLikes);
@@ -125,6 +143,16 @@ const PostCard = ({
           <TouchableOpacity onPress={openPostDetails}>
             <Icon name="threeDotsHorizontal" size={hp(3.4)} />
           </TouchableOpacity>
+        )}
+        {canDelete && currentUser.id == item?.userId && (
+          <View style={styles.actions}>
+            <TouchableOpacity onPress={() => onEdit(item)}>
+              <Icon name="edit" size={hp(2.5)} color={theme.colors.textLight} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDelete(item)}>
+              <Icon name="delete" size={hp(2.5)} color={theme.colors.rose} />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
       <View style={styles.content}>
@@ -224,7 +252,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  ac: {
+  actions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
