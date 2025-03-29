@@ -26,6 +26,8 @@ const Home = () => {
   const router = useRouter();
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
+  const [NotificationCount, setNotificationCount] = useState(0);
+
   const [hasMore, sethasMore] = useState(true);
 
   const handlePostEvent = async (payload) => {
@@ -106,16 +108,32 @@ const Home = () => {
         handleNewCommentEvent
       )
       .subscribe();
+
+    let notificationChannel = supabase
+      .channel("notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: "receiverId=eq." + user.id,
+        },
+        (payload) => {
+          setNotificationCount((prevCount) => prevCount + 1);
+        }
+      )
+      .subscribe();
     // getPostDetails();
 
     return () => {
+      supabase.removeChannel(notificationChannel);
       supabase.removeChannel(postChannel);
       supabase.removeChannel(commentChannel);
     };
   }, []);
 
   const getPosts = async () => {
-    
     // call the api here
     if (!hasMore) return null;
     limit += 4;
@@ -134,7 +152,12 @@ const Home = () => {
         <View style={styles.header}>
           <Text style={styles.title}>Social Network</Text>
           <View style={styles.icons}>
-            <Pressable onPress={() => router.push("notifications")}>
+            <Pressable
+              onPress={() => {
+                setNotificationCount(0);
+                router.push("notifications");
+              }}
+            >
               <Icon
                 name="heart"
                 size={hp(3.2)}
@@ -149,6 +172,18 @@ const Home = () => {
                 strokeWidth={2}
                 color={theme.colors.text}
               />
+              {NotificationCount > 0 && (
+                <View style={styles.pill}>
+                  <Text
+                    style={{
+                      color: "white",
+                      fontSize: hp(1.5),
+                    }}
+                  >
+                    {NotificationCount}
+                  </Text>
+                </View>
+              )}
             </Pressable>
             <Pressable onPress={() => router.push("profile")}>
               <Avatar
